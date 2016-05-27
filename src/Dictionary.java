@@ -1,3 +1,5 @@
+import javafx.util.Pair;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -10,7 +12,7 @@ import java.nio.file.Files;
  */
 public class Dictionary {
 
-    List<ArrayList<Bucket>> topLevel;
+    List<ArrayList<String>> topLevel;
     int curSize;
     int numElements;
 
@@ -22,34 +24,21 @@ public class Dictionary {
 
     private void expand(int newSize){
         while (curSize < newSize + 1) {
-            ArrayList<Bucket> listToAdd = new ArrayList<>();
-            for (int i = 0; i <= curSize; i++) {
-                listToAdd.add(new Bucket());
-            }
-            topLevel.add(listToAdd);
+            topLevel.add(new ArrayList<>());
             curSize++;
         }
     }
 
 
-    public void put(MyUniqueString string) {
+    public void put(String string) {
         int i = string.length()-1;
         if(i + 1 > curSize) {
             expand(i);
         }
-        List<Bucket> listToPut = topLevel.get(i);
-        for (int j = 0; j < string.length() ; j++) {
-            listToPut.get(j).put(string.charAt(j), string);
-        }
+        topLevel.get(i).add(string);
         numElements++;
-            
-    }
 
-    public void put(String string) {
-        MyUniqueString str = new MyUniqueString(string);
-        put(str);
     }
-
 
     public void loadFromFile(Path path) throws IOException {
         List<String> data = Files.readAllLines(path);
@@ -58,63 +47,43 @@ public class Dictionary {
         }
     }
 
-    public List<MyUniqueString> getAllWithLengthEquals(int length) {
-        return topLevel.get(length-1).get(0).getAllStrings();
-    }
 
-    public List<MyUniqueString> getAllWithCharactersAt(Map<Integer, Character> values, int length) {
-        try {
-            List<Bucket> buckets = this.topLevel.get(length - 1);
-
-            Iterator it = values.entrySet().iterator();
-            Map.Entry<Integer, Character> first = (Map.Entry) it.next();
-            List<MyUniqueString> allStrings = buckets.get(first.getKey() - 1).getAllWithCharactersAt(first.getValue());
-            while (it.hasNext()) {
-                Map.Entry<Integer, Character> entry = (Map.Entry) it.next();
-                for (int i = 0; i < allStrings.size(); i++) {
-                    if (allStrings.get(i).charAt(entry.getKey() - 1) != entry.getValue()) {
-                        allStrings.remove(allStrings.get(i));
-                        i--;
+    public List<String> getAllStrings(int length, Map<Character, List<Integer>> keys) {
+        List<String> result = new ArrayList<>(topLevel.get(length - 1));
+        result.removeIf(s -> {
+            Map<Character, List<Integer>> test = new HashMap<>();
+            for (int i = 0; i < s.length(); i++) {
+                if(keys.containsKey(s.charAt(i))) {
+                    if(test.containsKey(s.charAt(i))) {
+                        test.get(s.charAt(i)).add(i + 1);
+                    } else {
+                        test.put(s.charAt(i), new ArrayList<>());
+                        test.get(s.charAt(i)).add(i + 1);
                     }
                 }
             }
-            return allStrings;
-        } catch (Exception e) {
-            int i = 5;
-        }
-        return null;
-    }
-}
+            boolean flag = keys.equals(test);
+            return !flag;
+        });
+        if(result.isEmpty()) {
+            result.addAll(new ArrayList<>(topLevel.get(length - 2))); //hack если в конце s
+            result.removeIf(s -> {
+                Map<Character, List<Integer>> test = new HashMap<>();
+                for (int i = 0; i < s.length(); i++) {
+                    if(keys.containsKey(s.charAt(i))) {
+                        if(test.containsKey(s.charAt(i))) {
+                            test.get(s.charAt(i)).add(i + 1);
+                        } else {
+                            test.put(s.charAt(i), new ArrayList<>());
+                            test.get(s.charAt(i)).add(i + 1);
+                        }
+                    }
+                }
 
-class Bucket{
-
-    private HashMap<Character, List<MyUniqueString>> bucket;
-
-    public Bucket() {
-        bucket = new HashMap<>();
-    }
-
-    public void put(char character, MyUniqueString string) {
-        if(!bucket.containsKey(character)) {
-            bucket.put(character, new ArrayList<>());
-        }
-        bucket.get(character).add(string);
-    }
-
-    public List<MyUniqueString> getAllStrings() {
-        List<MyUniqueString> result = new ArrayList<>();
-        for (Character character : bucket.keySet()) {
-            result.addAll(bucket.get(character));
+                boolean flag = keys.equals(test);
+                return !flag;
+            });
         }
         return result;
     }
-
-    public List<MyUniqueString> getAllWithCharactersAt(Character character) {
-        try {
-            return new ArrayList<>(bucket.get(character));
-        } catch (NullPointerException e) {
-            return new ArrayList<>();
-        }
-    }
-
 }
